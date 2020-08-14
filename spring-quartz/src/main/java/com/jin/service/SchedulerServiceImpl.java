@@ -1,11 +1,6 @@
 package com.jin.service;
 
-import java.io.IOException;
-import java.util.Properties;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
+import com.jin.helper.AutowiringSpringBeanJobFactory;
 import org.quartz.CronTrigger;
 import org.quartz.JobDetail;
 import org.quartz.SchedulerException;
@@ -13,12 +8,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.PropertiesFactoryBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 
-import com.jin.helper.AutowiringSpringBeanJobFactory;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import java.io.IOException;
+import java.util.Properties;
 
 @Configuration
 public class SchedulerServiceImpl implements SchedulerService{
@@ -29,6 +28,9 @@ public class SchedulerServiceImpl implements SchedulerService{
     
     @Autowired
     AutowiringSpringBeanJobFactory autowiringSpringBeanJobFactory;
+
+    @Autowired
+    ApplicationContext applicationContext;
     
     @PostConstruct
     void init() {   	
@@ -44,6 +46,7 @@ public class SchedulerServiceImpl implements SchedulerService{
     		quartzScheduler.setSchedulerName("wms-quartz-scheduler");
      		quartzScheduler.setJobFactory(autowiringSpringBeanJobFactory);
     		quartzScheduler.setQuartzProperties(quartzProperties());
+    		quartzScheduler.setApplicationContext(applicationContext);
     		logger.info("Quartz Scheduler initialized");
     		return quartzScheduler;
         } catch ( Exception e ) {
@@ -65,7 +68,9 @@ public class SchedulerServiceImpl implements SchedulerService{
 	@Bean
 	public Properties quartzProperties() {
 		PropertiesFactoryBean propertiesFactoryBean = new PropertiesFactoryBean();
-		propertiesFactoryBean.setLocation(new ClassPathResource("/quartz.properties"));
+		for (String profile : applicationContext.getEnvironment().getActiveProfiles()) {
+			propertiesFactoryBean.setLocation(new ClassPathResource("/quartz-"+profile+".properties"));
+		}
 		Properties properties = null;
 		try {
 			propertiesFactoryBean.afterPropertiesSet();
